@@ -14,14 +14,16 @@ module blackjack(SW, KEY, CLOCK_50, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HE
     wire ld_card_player;
     wire go;
     
+    wire [3:0] state;
     wire [7:0] money;
-
+    wire [3:0] card;
     wire [7:0] player_total;
     wire [7:0] dealer_total;
     //wire [3:0] card_in;
     assign resetn = SW[4];
     assign hold = SW[17];
     assign go = SW[5];
+    assign LEDR[3:0] = state; 
     
     
     //draw_card draw( .in(draw),
@@ -52,13 +54,15 @@ module blackjack(SW, KEY, CLOCK_50, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HE
         .tens(HEX7),
 	.ones(HEX6)
         );
+	draw_card Draw_Card(.in(draw), .card(card), .clock(CLOCK_50));
     control C0(
 	.clk(CLOCK_50),
 	.resetn(SW[4]),
 	.hold(SW[17]),
 	.hold_d(hold_d),
 	.go(go),
-
+	.draw(draw),
+	.state(state),
 	.outcome(outcome), 
 	.ld_card_dealer(ld_card_dealer),
 	.ld_card_player(ld_card_player),
@@ -69,7 +73,7 @@ module blackjack(SW, KEY, CLOCK_50, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HE
 	.clk(CLOCK_50),
 	.resetn(SW[4]),
 	.go(go),
-	.card_in(SW[16:13]),
+	.card_in(card),
 	.bet(SW[3:0]),
 	.ld_card_dealer(ld_card_dealer),
 	.ld_card_player(ld_card_player),
@@ -90,24 +94,24 @@ module control(
     input outcome,
     input go,
     
-    output reg ld_card_dealer,ld_card_player,win,lose
-    //output draw
+    output reg ld_card_dealer,ld_card_player,win,lose,draw,
+    output reg [3:0] state
     );
 
-    reg [5:0] current_state, next_state; 
-    localparam  DEALER_DRAW_A   = 5'b00000,
-		PLAYER_DRAW_A   = 5'b10000,
-		PLAYER_DRAW_B   = 5'b10001,
-		PLAYER_DECIDE = 5'b10011,
-		PLAYER_DECIDE_WAIT = 5'b00011,
-                PLAYER_HOLD    = 5'b00111,
-		DEALER_DRAW_B   = 5'b01111,
-		DEALER_DECIDE = 5'b11111,
-		DEALER_DECIDE_WAIT = 5'b11110,
-                DEALER_HOLD     =5'b11100,
-					 EVAL		=5'b00110,
-                WIN       = 5'b00100,
-                LOSE       = 5'b01000;
+    reg [3:0] current_state, next_state; 
+    localparam  DEALER_DRAW_A   = 4'd0,
+		PLAYER_DRAW_A   = 4'd1,
+		PLAYER_DRAW_B   = 4'd2,
+		PLAYER_DECIDE = 4'd3,
+		PLAYER_DECIDE_WAIT = 4'd4,
+                PLAYER_HOLD    = 4'd5,
+		DEALER_DRAW_B   = 4'd6,
+		DEALER_DECIDE = 4'd7,
+		DEALER_DECIDE_WAIT = 4'd8,
+                DEALER_HOLD     =4'd9,
+					 EVAL		=4'd10,
+                WIN       = 4'd11,
+                LOSE       = 4'd12;
     initial
     begin
     current_state = DEALER_DRAW_A;
@@ -129,7 +133,7 @@ module control(
 					EVAL: next_state =  outcome ? WIN : LOSE;
                WIN: next_state = DEALER_DRAW_A;
                LOSE: next_state = DEALER_DRAW_A;
-            default:     next_state = DEALER_DRAW_A;
+            default:     next_state = PLAYER_DECIDE;
         endcase
     end // state_table
    
@@ -142,23 +146,23 @@ module control(
         ld_card_dealer = 1'b0;
 	win = 1'b0;
 	lose = 1'b0;
-	//draw = 1'b0;
+	draw = 1'b0;
         case (current_state)
             DEALER_DRAW_A: begin
                 ld_card_dealer = 1'b1;
-		//draw = 1'b1;
+		draw = 1'b1;
                 end
 	    DEALER_DRAW_B: begin
                 ld_card_dealer = 1'b1;
-		//draw = 1'b1;
+		draw = 1'b1;
                 end
             PLAYER_DRAW_A: begin
                 ld_card_player = 1'b1;
-		//draw = 1'b1;
+		draw = 1'b1;
                 end
 	    PLAYER_DRAW_B: begin
                 ld_card_player = 1'b1;
-		//draw = 1'b1;
+		draw = 1'b1;
                 end
             WIN: begin
                 win = 1'b1;
@@ -170,6 +174,7 @@ module control(
             
         // default:    // don't need default since we already made sure all of our outputs were assigned a value at the start of the always block
         endcase
+		  state <= current_state;
     end // enable_signals
    
     // current_state registers
@@ -499,5 +504,36 @@ module hex_display_card(IN, tens, ones);
 							ones = 7'b0111111; // 0
 						end
 		endcase
+	end
+endmodule
+
+module draw_card(in, card, clock);
+	input in, clock;
+	output reg [3:0] card;
+	
+	always @(posedge clock)
+	begin
+		if(in == 1'b1)
+			card <= counterValue;
+	end
+	
+	wire [3:0] counterValue;
+	
+	counterUp counter(.num(counterValue), .clock(clock), .pause(in));
+	
+endmodule	
+
+module counterUp(num, clock, pause);
+	input pause, clock;
+	output reg [3:0] num;
+	
+	always @(posedge clock)
+	begin
+		if (num == 4'b1010)
+			num <= 4'b0001;
+		else if(pause == 1'b1)
+			num <= num + 1'b0;
+		else
+			num <= num + 1'b1;
 	end
 endmodule
