@@ -242,7 +242,7 @@ module datapath(
 		player_score_cur <= 6'b000000;
 		dealer_score_cur <= 6'b000000;
 		outcome <= 2'b00;
-		card_value <= 4'b000;
+		card_value <= 4'b0000;
 	end
 	
 	draw_card Draw_Card(.in(draw), .card(card), .clock(clock), .reset(reset));
@@ -254,7 +254,7 @@ module datapath(
 		begin
 			player_score_cur <= 6'b0;
 			dealer_score_cur <= 6'b0;
-			card_value <= 3'b0000;
+			card_value <= 4'b0000;
 		end
 		else
 			if(turn == 3'b110)
