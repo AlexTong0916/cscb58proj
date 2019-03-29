@@ -23,8 +23,8 @@ module cardgame_21(SW, KEY, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7, LEDR
 	
 	//wire [3:0] card;
 	wire reset, next, draw, drawing;
-	assign reset = ~KEY[0];
-	assign next = ~KEY[3];
+	assign reset = ~KEY[0] || SW[2];
+	assign next = ~KEY[3] || SW[1];
 	assign draw = ~KEY[2] || ~KEY[1] || SW[0];
 	
 	wire [3:0] card_value;
@@ -36,14 +36,18 @@ module cardgame_21(SW, KEY, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7, LEDR
 	assign LEDR[15] = next;
 	assign LEDR[14] = draw;
 	
-//	draw_card draw(.in(~KEY[2]), .card(card), .clock(CLOCK_50), .reset(reset), .turn(SW[1]));
+//	// FOR TESTING PURPOSES
+//	wire [3:0] card;
+//	
+//	draw_card card_draw_test(.in(draw), .card(card), .clock(CLOCK_50), .reset(reset));
 //	
 //	hex_display_card hex_card(.IN(card), .tens(HEX1), .ones(HEX0));
 //	
-//	hex_display_card player_score(.IN(score), .tens(HEX5), .ones(HEX4));
+//	wire [3:0] num;
 //	
-//	wire [5:0] score;
-//	player_register test_reg(.in(card), .out(score), .clock(~KEY[2]), .reset(reset));
+//	counterUp counter(.num(num), .clock(CLOCK_50), .pause(draw));
+//	
+//	hex_display_card counter_hex(.IN(num), .tens(HEX5), .ones(HEX4));
 
 	// CONTROL MODULE
 	control control_module(
@@ -93,9 +97,9 @@ module cardgame_21(SW, KEY, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7, LEDR
 	always @(*)
 	begin
 		case(outcome)
-			2'b01: outcome_hex <= 4'b1010;
-			2'b10: outcome_hex <= 4'b1101;
-			2'b00: outcome_hex <= 4'b0000;
+			2'b01: outcome_hex <= 4'b1010; // Player wins
+			2'b10: outcome_hex <= 4'b1101; // Dealer wins
+			2'b00: outcome_hex <= 4'b0000; // No outcome
 			
 		endcase
 	end
@@ -136,9 +140,9 @@ module control(
 	begin: state_table
 		case(current_state)
 			PLAYER_HOLD: begin
-								if(next)
+								if(next == 1'b1)
 									next_state = PLAYER_HOLD_WAIT;
-								else if(draw)
+								else if(draw == 1'b1)
 									next_state = PLAYER_DRAW;
 								else if(outcome == 2'b10)
 									next_state = ENDGAME;
@@ -228,11 +232,8 @@ module datapath(
 	output reg [5:0] dealer_score);
 
 	wire [3:0] card;
-	wire [3:0] dealer_count;
 	
 	reg [5:0] player_score_cur, dealer_score_cur;
-	
-	integer dealer_card_counter = 0;
 	
 	initial
 	begin
@@ -244,9 +245,8 @@ module datapath(
 		card_value <= 4'b000;
 	end
 	
-	draw_card Draw_Card(.in(draw), .card(card), .clock(clock), .reset(reset), .turn(1'b0));
+	draw_card Draw_Card(.in(draw), .card(card), .clock(clock), .reset(reset));
 	
-	draw_card turn_counter(.in(draw), .card(dealer_count), .clock(clock), .reset(reset), .turn(1'b1));
 	// Operations to keep track of player scores
 	always @(*)
 	begin: operations
@@ -259,11 +259,12 @@ module datapath(
 		else
 			if(turn == 3'b110)
 			begin
-				player_score_cur <= player_score_cur + card;
-				card_value <= card;
+				player_score_cur <= player_score_cur + card_value;
 			end
 			else if(turn == 3'b111)
-				dealer_score_cur <= dealer_score_cur + card;
+				dealer_score_cur <= dealer_score_cur + card_value;
+			else if(turn == 3'b001 || turn == 3'b011)
+				card_value <= card;
 	end
 	
 	// Output result
@@ -280,11 +281,11 @@ module datapath(
 			player_score <= player_score_cur;
 			dealer_score <= dealer_score_cur;
 				
-			if(player_score > 6'b10101  && turn == 3'b000)
+			if(player_score > 5'd21  && turn == 3'b000)
 				outcome <= 2'b10;
-			else if (dealer_score > player_score && dealer_score <= 5'b10101)
+			else if (dealer_score > player_score && dealer_score <= 5'd21)
 				outcome <= 2'b10;
-			else if(dealer_score > 5'b10101)
+			else if(dealer_score > 5'd21 && player_score <= 5'd21)
 				outcome <= 2'b01;
 			else
 				outcome <= 2'b00;
