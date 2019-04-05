@@ -100,18 +100,22 @@ module control(
 
     reg [3:0] current_state, next_state; 
     localparam  DEALER_DRAW_A   = 4'd0,
-		PLAYER_DRAW_A   = 4'd1,
-		PLAYER_DRAW_B   = 4'd2,
-		PLAYER_DECIDE = 4'd3,
-		PLAYER_DECIDE_WAIT = 4'd4,
-                PLAYER_HOLD    = 4'd5,
-		DEALER_DRAW_B   = 4'd6,
-		DEALER_DECIDE = 4'd7,
-		DEALER_DECIDE_WAIT = 4'd8,
-                DEALER_HOLD     =4'd9,
-					 EVAL		=4'd10,
-                WIN       = 4'd11,
-                LOSE       = 4'd12;
+	   DEALER_TO_PLAYER = 4'd1,
+		PLAYER_DRAW_A   = 4'd2,
+		PLAYER_DRAW_B   = 4'd3,
+		PLAYER_DECIDE = 4'd4,
+		PLAYER_DECIDE_WAIT = 4'd5,
+                PLAYER_HOLD    = 4'd6,
+		DEALER_DRAW_B   = 4'd7,
+		DEALER_DECIDE = 4'd8,
+		DEALER_DECIDE_WAIT = 4'd9,
+                DEALER_HOLD     =4'd10,
+					 EVAL		=4'd11,
+                WIN       = 4'd12,
+                LOSE       = 4'd13,
+					 END       = 4'd14,
+					 END2      = 4'd15
+					 ;
     initial
     begin
     current_state = DEALER_DRAW_A;
@@ -120,7 +124,8 @@ module control(
     always@(*)
     begin: state_table 
             case (current_state)
-               DEALER_DRAW_A: next_state = PLAYER_DRAW_A;
+               DEALER_DRAW_A: next_state = DEALER_TO_PLAYER;
+					DEALER_TO_PLAYER:next_state = PLAYER_DRAW_A;
 					PLAYER_DRAW_A: next_state = PLAYER_DRAW_B;
 					PLAYER_DRAW_B: next_state = PLAYER_DECIDE;
                PLAYER_DECIDE: next_state = go ? PLAYER_DECIDE_WAIT : PLAYER_DECIDE;
@@ -131,8 +136,10 @@ module control(
 					DEALER_DECIDE_WAIT: next_state = go ? DEALER_DECIDE_WAIT : DEALER_HOLD;
                DEALER_HOLD: next_state =  hold_d ? EVAL : DEALER_DRAW_B;
 					EVAL: next_state =  outcome ? WIN : LOSE;
-               WIN: next_state = DEALER_DRAW_A;
-               LOSE: next_state = DEALER_DRAW_A;
+               WIN: next_state = END;
+               LOSE: next_state = END;
+					END: next_state = END2;
+					END2: next_state = DEALER_DRAW_A;
             default:     next_state = PLAYER_DECIDE;
         endcase
     end // state_table
