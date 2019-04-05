@@ -19,7 +19,7 @@ module cardgame_21(SW, KEY, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7, LEDR
 	output [6:0] HEX5;
 	output [6:0] HEX6;
 	output [6:0] HEX7;
-	output [16:0] LEDR;
+	output [17:0] LEDR;
 	
 	//wire [3:0] card;
 	wire reset, next, draw, drawing;
